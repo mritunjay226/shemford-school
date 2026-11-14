@@ -96,7 +96,6 @@ const WINGS: WingData[] = [
 export default function InteractiveWings() {
   const [selectedWing, setSelectedWing] = useState<string>("foundation");
   const [childAge, setChildAge] = useState<string>("3");
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   // Tilt Card Ref tracking
   const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});

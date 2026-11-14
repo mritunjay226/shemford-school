@@ -4,21 +4,16 @@ import { useState } from "react";
 import Image from "next/image";
 import {
   Phone,
-  Mail,
   MapPin,
-  Calendar,
   CheckCircle2,
   Sparkles,
   ArrowRight,
-  Trophy,
-  Bus,
   Clock,
   ShieldCheck,
   Award,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
-  MessageSquare,
 } from "lucide-react";
 import InteractiveGallery from "./InteractiveGallery";
 import InteractiveWings from "./InteractiveWings";
@@ -480,7 +475,7 @@ export default function SchoolLandingPage() {
                   National Leadership
                 </span>
                 <h3 className="font-bold font-[family-name:var(--font-display)] text-xl text-[#1E2432]">
-                  Mr. Amol Arora
+                  Mr. Vikas Agrwal
                 </h3>
                 <span className="text-xs text-[#0B4619] font-bold block">
                   Managing Director, SHEMFORD Group
@@ -506,10 +501,11 @@ export default function SchoolLandingPage() {
                   Campus Leadership
                 </span>
                 <h3 className="font-bold font-[family-name:var(--font-display)] text-xl text-[#1E2432]">
-                  Principal Mam
+                  Vandana Saxena
                 </h3>
+                
                 <span className="text-xs text-[#0B4619] font-bold block">
-                  Head of School, Saharanpur Campus
+                  Principal, Saharanpur Campus
                 </span>
                 <p className="text-xs text-[#1E2432]/75 leading-relaxed italic">
                   “Every child at our Meharbani campus is mentored with individual attention, small batch sizes, and encouragement to shine both academically and creatively.”

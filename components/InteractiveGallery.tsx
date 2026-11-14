@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import {
   Camera,
-  Layers,
   Sparkles,
   Maximize2,
   X,
