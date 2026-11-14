@@ -21,13 +21,6 @@ export default function ScrollVideoCanvas() {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scene3DRef = useRef<HTMLDivElement | null>(null);
-  const scrubberTrackRef = useRef<HTMLDivElement | null>(null);
-
-  // Direct DOM refs for zero-lag HUD updates without re-renders
-  const scrubberFillRef = useRef<HTMLDivElement | null>(null);
-  const bufferBarRef = useRef<HTMLDivElement | null>(null);
-  const timecodeRef = useRef<HTMLSpanElement | null>(null);
-  const frameBadgeRef = useRef<HTMLSpanElement | null>(null);
   const introOverlayRef = useRef<HTMLDivElement | null>(null);
 
   // Hardware-accelerated GPU ImageBitmap cache & fallback HTMLImageElement cache
@@ -226,11 +219,6 @@ export default function ScrollVideoCanvas() {
         imagesRef.current[index] = img;
         loadedCountRef.current += 1;
 
-        if (bufferBarRef.current) {
-          bufferBarRef.current.style.width = `${
-            (loadedCountRef.current / TOTAL_FRAMES) * 100
-          }%`;
-        }
         if (index === 0 || loadedCountRef.current === 1) {
           setCanvasReady(true);
         }
@@ -307,52 +295,6 @@ export default function ScrollVideoCanvas() {
     pumpLoaderRef.current();
   }, []);
 
-  // Interactive scrubber pointer events (drag & click)
-  const handleScrubPointer = useCallback(
-    (clientX: number) => {
-      const scrubber = scrubberTrackRef.current;
-      if (!scrubber) return;
-      const rect = scrubber.getBoundingClientRect();
-      const p = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      scrollToProgress(p, false);
-    },
-    [scrollToProgress]
-  );
-
-  const onScrubberMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    handleScrubPointer(e.clientX);
-
-    const onMouseMove = (moveEvt: MouseEvent) => {
-      handleScrubPointer(moveEvt.clientX);
-    };
-    const onMouseUp = () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  };
-
-  const onScrubberTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches[0]) {
-      handleScrubPointer(e.touches[0].clientX);
-
-      const onTouchMove = (moveEvt: TouchEvent) => {
-        if (moveEvt.touches[0]) {
-          handleScrubPointer(moveEvt.touches[0].clientX);
-        }
-      };
-      const onTouchEnd = () => {
-        window.removeEventListener("touchmove", onTouchMove);
-        window.removeEventListener("touchend", onTouchEnd);
-      };
-
-      window.addEventListener("touchmove", onTouchMove, { passive: true });
-      window.addEventListener("touchend", onTouchEnd);
-    }
-  };
-
   // Main 60-120fps continuous animation and render loop with frame-rate independent physics
   useEffect(() => {
     let rafId: number;
@@ -417,22 +359,8 @@ export default function ScrollVideoCanvas() {
       drawFrame(currentFrameRef.current);
       lastRenderedFrameRef.current = currentFrameRef.current;
 
-      // Instant HUD DOM updates without triggering React renders
+      // Fade out scroll down button as user scrolls down
       const visualProgress = currentFrameRef.current / (TOTAL_FRAMES - 1);
-      const pct = `${(visualProgress * 100).toFixed(2)}%`;
-
-      if (scrubberFillRef.current) scrubberFillRef.current.style.width = pct;
-      if (timecodeRef.current) {
-        const curSec = (visualProgress * ((TOTAL_FRAMES - 1) / FPS)).toFixed(1);
-        timecodeRef.current.textContent = `${curSec}s / ${TOTAL_SECONDS_STR}s`;
-      }
-      if (frameBadgeRef.current) {
-        frameBadgeRef.current.textContent = `F${
-          Math.round(currentFrameRef.current) + 1
-        }`;
-      }
-
-      // Fade out center intro overlay as user scrolls down
       if (introOverlayRef.current) {
         const fade = Math.max(0, 1 - visualProgress * 4.5);
         introOverlayRef.current.style.opacity = fade.toFixed(2);
@@ -463,6 +391,10 @@ export default function ScrollVideoCanvas() {
     };
   }, [drawFrame, prioritizeAroundFrame, readTrackProgress, updateGeometry]);
 
+  // Determine filter style on the canvas to sharpen and conceal blur
+  const canvasFilterStyle =
+    "contrast(1.14) brightness(1.02) saturate(1.22) url(#unsharp-mask)";
+
   return (
     <section
       ref={trackRef}
@@ -470,6 +402,17 @@ export default function ScrollVideoCanvas() {
       className="relative w-full bg-black select-none text-white"
       style={{ height: "400vh" }}
     >
+      {/* SVG Convolution Matrix Unsharp Mask for Hardware-Accelerated Edge Sharpness */}
+      <svg className="absolute w-0 h-0 overflow-hidden" aria-hidden="true">
+        <filter id="unsharp-mask" x="-10%" y="-10%" width="120%" height="120%">
+          <feConvolveMatrix
+            order="3"
+            preserveAlpha="true"
+            kernelMatrix="0 -0.8 0  -0.8 4.2 -0.8  0 -0.8 0"
+          />
+        </filter>
+      </svg>
+
       {/* Pinned 100vh Viewport while user scrolls through 299 frames */}
       <div className="sticky top-0 left-0 w-full h-screen overflow-hidden bg-black">
         {/* Instant fallback placeholder while frame 1 is decoded */}
@@ -486,76 +429,39 @@ export default function ScrollVideoCanvas() {
         <div ref={scene3DRef} className="w-full h-full will-change-transform">
           <canvas
             ref={canvasRef}
-            className="w-full h-full block pointer-events-none"
+            className="w-full h-full block pointer-events-none transition-[filter] duration-300"
+            style={{ filter: canvasFilterStyle }}
           />
         </div>
 
-        {/* Subtle cinematic gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 pointer-events-none" />
+        {/* Layer 1: Fine 35mm Analog Film Grain Texture (Hides pixelation & compression blur) */}
+        <div className="absolute inset-0 video-film-grain mix-blend-overlay opacity-65 pointer-events-none" />
 
-        {/* Minimal Center Title Overlay (Fades out automatically as you scroll) */}
+        {/* Layer 2: Deep Radial Vignette (Masks peripheral blurring & focuses central lens) */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.45)_75%,rgba(0,0,0,0.88)_100%)] pointer-events-none" />
+
+        {/* Layer 3: Vertical Cinematic Soft Grading (Top & Bottom subtle contrast gradient) */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
+
+        {/* =============================================================== */}
+        {/* CLEAN MINIMALIST SCROLL DOWN BUTTON                             */}
+        {/* =============================================================== */}
         <div
           ref={introOverlayRef}
-          className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-none transition-opacity duration-150"
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 transition-opacity duration-200 pointer-events-auto select-none"
         >
-          <span className="px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-xs font-semibold tracking-widest uppercase mb-4">
-            3D Interactive Aerial Campus Tour
-          </span>
-          <h2 className="font-[family-name:var(--font-display)] text-4xl sm:text-6xl md:text-7xl font-bold text-white drop-shadow-2xl tracking-tight">
-            SHEMFORD SAHARANPUR
-          </h2>
-          <p className="mt-3 text-white/85 text-sm sm:text-base max-w-lg drop-shadow">
-            Scroll down to fly through our campus in Village Meharbani, Behat Road
-          </p>
-        </div>
-
-        {/* Minimal Bottom Scrubber & Skip Button */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2 rounded-full bg-black/60 backdrop-blur-xl border border-white/15 text-white shadow-2xl">
-          <div
-            ref={scrubberTrackRef}
-            onMouseDown={onScrubberMouseDown}
-            onTouchStart={onScrubberTouchStart}
-            className="relative w-32 sm:w-48 h-3 flex items-center cursor-pointer group"
-            role="slider"
-            aria-label="Timeline scrubber"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={0}
-          >
-            <div className="relative w-full h-1.5 group-hover:h-2 transition-all bg-white/20 rounded-full overflow-hidden">
-              <div
-                ref={bufferBarRef}
-                className="absolute inset-y-0 left-0 bg-white/30 rounded-full transition-all duration-300"
-                style={{ width: "0%" }}
-              />
-              <div
-                ref={scrubberFillRef}
-                className="absolute inset-y-0 left-0 bg-[#FF6B35] rounded-full"
-                style={{ width: "0%" }}
-              />
-            </div>
-          </div>
-
-          <span
-            ref={timecodeRef}
-            className="hidden sm:inline font-mono text-[11px] text-white/70"
-          >
-            0.0s / {TOTAL_SECONDS_STR}s
-          </span>
-
-          <span
-            ref={frameBadgeRef}
-            className="hidden sm:inline font-mono text-[10px] text-white/50"
-          >
-            F1
-          </span>
-
           <button
             type="button"
             onClick={skipToWebsite}
-            className="ml-1 px-3 py-1 rounded-full bg-[#FF6B35] hover:bg-[#ff8255] text-white text-[11px] font-bold tracking-wide transition-all pointer-events-auto"
+            aria-label="Scroll down to explore campus"
+            className="group flex items-center gap-3 px-6 py-3 rounded-full bg-black/65 hover:bg-black/85 backdrop-blur-xl border border-white/20 text-white shadow-[0_8px_32px_rgba(0,0,0,0.6)] transition-all hover:scale-105 active:scale-95 cursor-pointer"
           >
-            Enter Site ↓
+            <span className="text-xs sm:text-sm font-extrabold tracking-widest uppercase text-white/90 group-hover:text-white">
+              Scroll Down
+            </span>
+            <div className="w-6 h-6 rounded-full bg-[#FF6B35] flex items-center justify-center text-white text-xs font-black shadow-md group-hover:translate-y-0.5 transition-transform animate-bounce">
+              ↓
+            </div>
           </button>
         </div>
       </div>

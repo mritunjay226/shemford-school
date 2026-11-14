@@ -1,19 +1,125 @@
 @import "tailwindcss";
 
 :root {
-  --background: #000000;
-  --foreground: #ffffff;
+  --background: #FAF6F0;
+  --foreground: #1E2432;
+  --color-emerald-deep: #0B4619;
+  --color-emerald-forest: #1F4E3D;
+  --color-gold-sun: #FFCA28;
+  --color-coral-action: #FF6B35;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
 }
 
 body {
-  background: #000000;
-  color: #ffffff;
-  font-family: Arial, Helvetica, sans-serif;
+  background: #FAF6F0;
+  color: #1E2432;
+  overflow-x: hidden;
+}
+
+/* ========================================================================= */
+/* KINETIC MARQUEE ANIMATIONS                                                */
+/* ========================================================================= */
+@keyframes marquee-scroll-left {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes marquee-scroll-right {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
+}
+
+.animate-marquee-left {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll-left 28s linear infinite;
+}
+
+.animate-marquee-left:hover {
+  animation-play-state: paused;
+}
+
+.animate-marquee-right {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll-right 32s linear infinite;
+}
+
+.animate-marquee-right:hover {
+  animation-play-state: paused;
+}
+
+/* ========================================================================= */
+/* AURORA & FLOATING BACKGROUND GLOW                                         */
+/* ========================================================================= */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(2deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.08); }
+}
+
+.animate-float {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 8s ease-in-out infinite;
+}
+
+/* ========================================================================= */
+/* FILM GRAIN & VIDEO SHARPENING SHADERS                                     */
+/* ========================================================================= */
+.video-film-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* ========================================================================= */
+/* MODERN SCROLL-DRIVEN ENTRY EFFECTS (Progressive Enhancement)              */
+/* ========================================================================= */
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    @keyframes scroll-reveal-up {
+      entry 0% {
+        opacity: 0.1;
+        transform: translateY(36px) scale(0.96);
+      }
+      entry 100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .scroll-entry-card {
+      animation: scroll-reveal-up auto cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation-timeline: view();
+      animation-range: entry 10% entry 40%;
+    }
+  }
+}
+
+/* ========================================================================= */
+/* 3D PERSPECTIVE UTILITIES                                                  */
+/* ========================================================================= */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
 }

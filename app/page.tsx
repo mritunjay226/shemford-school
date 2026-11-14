@@ -35,12 +35,16 @@ export default function Home() {
         </div>
 
         <div className="hidden xl:flex items-center gap-4 font-[family-name:var(--font-mono)] text-[11px]">
-          <a href="tel:+919837027654" className="hover:text-[#FFCA28]">
-            📞 +91-9837027654
+          <a href="tel:8979001453" className="hover:text-[#FFCA28]">
+            📞 897-900-1453
           </a>
           <span>|</span>
-          <a href="mailto:saharanpur@shemford.com" className="hover:text-[#FFCA28]">
-            ✉️ saharanpur@shemford.com
+          <a href="tel:8923490432" className="hover:text-[#FFCA28]">
+            📱 89234 90432
+          </a>
+          <span>|</span>
+          <a href="mailto:shemfordsre@gmail.com" className="hover:text-[#FFCA28]">
+            ✉️ shemfordsre@gmail.com
           </a>
         </div>
       </div>

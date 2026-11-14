@@ -4,6 +4,18 @@ const nextConfig: NextConfig = {
   /* config options here */
   compress: true,
   poweredByHeader: false,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "shemfordsaharanpur.com",
+      },
+    ],
+  },
   experimental: {
     agentFeedback: true,
   },
@@ -33,4 +45,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
