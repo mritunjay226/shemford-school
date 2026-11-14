@@ -23,6 +23,7 @@ import {
 import InteractiveGallery from "./InteractiveGallery";
 import InteractiveWings from "./InteractiveWings";
 import QuickActionDock, { fireSchoolConfetti } from "./QuickActionDock";
+import ScrollVideoCanvas from "./ScrollVideoCanvas";
 
 const STAT_CARDS = [
   {
@@ -167,7 +168,7 @@ export default function SchoolLandingPage() {
   };
 
   return (
-    <div className="relative z-20 w-full bg-[#FAF6F0] text-[#1E2432] overflow-x-hidden">
+    <div className="relative z-20 w-full bg-[#FAF6F0] text-[#1E2432]">
       {/* =================================================================== */}
       {/* 1. STICKY MAIN NAVBAR                                               */}
       {/* =================================================================== */}
@@ -203,6 +204,10 @@ export default function SchoolLandingPage() {
           </a>
           <a href="#facilities" className="hover:text-[#0B4619] transition-colors">
             Facilities
+          </a>
+          <a href="#virtual-tour" className="hover:text-[#0B4619] transition-colors text-[#0B4619] font-extrabold flex items-center gap-1">
+            <span>3D Drone Tour</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] animate-ping" />
           </a>
           <a href="#leadership" className="hover:text-[#0B4619] transition-colors">
             Leadership
@@ -581,6 +586,29 @@ export default function SchoolLandingPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* =================================================================== */}
+      {/* 6.5. 3D AERIAL VIRTUAL CAMPUS FLIGHT (DRONE TOUR)                   */}
+      {/* =================================================================== */}
+      <section id="virtual-tour" className="relative w-full bg-black text-white">
+        {/* Section Intro Banner */}
+        <div className="w-full bg-[#0B4619] border-y border-emerald-700 py-12 px-4 sm:px-8 text-center">
+          <div className="max-w-4xl mx-auto space-y-3">
+            <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[#FFCA28] text-xs font-bold uppercase tracking-wider">
+              <span>🛸 Interactive 3D Drone Flight</span>
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-extrabold text-white font-[family-name:var(--font-display)] tracking-tight">
+              Fly Over Our 5-Acre Futuristic Campus
+            </h2>
+            <p className="text-sm sm:text-base text-white/80 max-w-xl mx-auto leading-relaxed">
+              Experience the lush green grounds, spacious academic blocks, and pollution-free atmosphere along Behat Road from above. Scroll down to steer the flight!
+            </p>
+          </div>
+        </div>
+
+        {/* The 3D Scroll Video Canvas */}
+        <ScrollVideoCanvas />
       </section>
 
       {/* =================================================================== */}

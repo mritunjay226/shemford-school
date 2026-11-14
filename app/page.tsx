@@ -1,4 +1,3 @@
-import ScrollVideoCanvas from "@/components/ScrollVideoCanvas";
 import SchoolLandingPage from "@/components/SchoolLandingPage";
 
 export const metadata = {
@@ -49,10 +48,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 2. Full-screen 3D Scroll Video Experience */}
-      <ScrollVideoCanvas />
-
-      {/* 3. Warm Playful School Landing Page */}
+      {/* 2. Warm Playful School Landing Page */}
       <SchoolLandingPage />
     </main>
   );

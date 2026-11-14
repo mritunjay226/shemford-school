@@ -3,10 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 const TOTAL_FRAMES = 299;
-const FPS = 30;
 const VIDEO_WIDTH = 1920;
 const VIDEO_HEIGHT = 1080;
-const TOTAL_SECONDS_STR = ((TOTAL_FRAMES - 1) / FPS).toFixed(1);
 const MAX_CONCURRENT_DOWNLOADS = 12;
 
 function getFrameUrl(index: number, isMobile = false): string {
@@ -66,22 +64,6 @@ export default function ScrollVideoCanvas() {
     return Math.max(0, Math.min(1, raw));
   }, []);
 
-  // Jump to a given progress ratio (0 to 1) along the video track
-  const scrollToProgress = useCallback((progress: number, smooth = true) => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    const clamped = Math.max(0, Math.min(1, progress));
-    const trackTop = track.getBoundingClientRect().top + window.scrollY;
-    const scrollable = track.offsetHeight - window.innerHeight;
-    const targetY = trackTop + clamped * scrollable;
-
-    window.scrollTo({
-      top: targetY,
-      behavior: smooth ? "smooth" : "auto",
-    });
-  }, []);
-
   // Skip straight to the website content
   const skipToWebsite = useCallback(() => {
     const track = trackRef.current;
@@ -103,14 +85,16 @@ export default function ScrollVideoCanvas() {
 
     const imgAspect = VIDEO_WIDTH / VIDEO_HEIGHT;
     const screenAspect = cw / ch;
-    const overscan = 1.05;
+    const overscan = 1.08;
 
-    let drawW = cw * overscan;
-    let drawH = ch * overscan;
+    let drawW: number;
+    let drawH: number;
 
     if (screenAspect > imgAspect) {
+      drawW = cw * overscan;
       drawH = drawW / imgAspect;
     } else {
+      drawH = ch * overscan;
       drawW = drawH * imgAspect;
     }
 
@@ -167,27 +151,99 @@ export default function ScrollVideoCanvas() {
     const offsetX = baseOffsetX + parallaxX;
     const offsetY = baseOffsetY + parallaxY;
 
+    // Helper to safely render an asset without crashing if ImageBitmap is detached
+    const safeDraw = (
+      asset: CanvasImageSource | null | undefined,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      alpha: number,
+      frameIdx: number
+    ): boolean => {
+      if (!asset) return false;
+
+      // Fast check for detached ImageBitmap
+      if (typeof ImageBitmap !== "undefined" && asset instanceof ImageBitmap) {
+        // @ts-expect-error closed property check on ImageBitmap
+        if (asset.closed || asset.width === 0 || asset.height === 0) {
+          bitmapsRef.current[frameIdx] = null;
+          const fallback = imagesRef.current[frameIdx];
+          if (fallback && fallback.complete && fallback.naturalWidth > 0) {
+            try {
+              ctx.globalAlpha = alpha;
+              ctx.drawImage(fallback, x, y, w, h);
+              return true;
+            } catch {
+              return false;
+            }
+          }
+          return false;
+        }
+      }
+
+      if (asset instanceof HTMLImageElement) {
+        if (!asset.complete || asset.naturalWidth === 0) return false;
+      }
+
+      try {
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(asset, x, y, w, h);
+        return true;
+      } catch {
+        // If drawImage throws InvalidStateError or detached error, purge bitmap and try fallback image
+        bitmapsRef.current[frameIdx] = null;
+        const fallback = imagesRef.current[frameIdx];
+        if (fallback && fallback !== asset && fallback.complete && fallback.naturalWidth > 0) {
+          try {
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(fallback, x, y, w, h);
+            return true;
+          } catch {
+            return false;
+          }
+        }
+        return false;
+      }
+    };
+
     // Fast path: if blendAlpha > 0.96 and next frame is available, render next frame directly
     if (nextAsset && blendAlpha >= 0.96) {
-      ctx.globalAlpha = 1;
-      ctx.drawImage(nextAsset as CanvasImageSource, offsetX, offsetY, drawW, drawH);
-      return;
+      if (safeDraw(nextAsset as CanvasImageSource, offsetX, offsetY, drawW, drawH, 1, nextIndex)) {
+        ctx.globalAlpha = 1;
+        return;
+      }
     }
 
     // Draw primary frame
-    ctx.globalAlpha = 1;
-    ctx.drawImage(baseAsset as CanvasImageSource, offsetX, offsetY, drawW, drawH);
+    const baseDrawn = safeDraw(
+      baseAsset as CanvasImageSource,
+      offsetX,
+      offsetY,
+      drawW,
+      drawH,
+      1,
+      baseIndex
+    );
 
     // Sub-frame cross-dissolve: blend next frame only when visibly significant (0.04 - 0.96)
     if (
+      baseDrawn &&
       nextAsset &&
       nextAsset !== baseAsset &&
       blendAlpha > 0.04
     ) {
-      ctx.globalAlpha = blendAlpha;
-      ctx.drawImage(nextAsset as CanvasImageSource, offsetX, offsetY, drawW, drawH);
-      ctx.globalAlpha = 1;
+      safeDraw(
+        nextAsset as CanvasImageSource,
+        offsetX,
+        offsetY,
+        drawW,
+        drawH,
+        blendAlpha,
+        nextIndex
+      );
     }
+    ctx.globalAlpha = 1;
   }, []);
 
   // Concurrent loader with asynchronous ImageBitmap GPU decoding (off-main-thread)
@@ -303,8 +359,8 @@ export default function ScrollVideoCanvas() {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const w = Math.round(window.innerWidth * dpr);
-      const h = Math.round(window.innerHeight * dpr);
+      const w = Math.round((canvas.clientWidth || window.innerWidth) * dpr);
+      const h = Math.round((canvas.clientHeight || window.innerHeight) * dpr);
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
@@ -371,50 +427,26 @@ export default function ScrollVideoCanvas() {
 
     rafId = requestAnimationFrame(tick);
 
-    const bitmaps = bitmapsRef.current;
-
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", updateCanvasResolution);
       window.removeEventListener("mousemove", handleMouseMove);
-
-      // Clean up GPU ImageBitmap memory allocations
-      bitmaps.forEach((bitmap) => {
-        if (bitmap && "close" in bitmap) {
-          try {
-            bitmap.close();
-          } catch {
-            // ignore
-          }
-        }
-      });
     };
   }, [drawFrame, prioritizeAroundFrame, readTrackProgress, updateGeometry]);
 
-  // Determine filter style on the canvas to sharpen and conceal blur
+  // Pure hardware-accelerated GPU contrast & saturation filter
   const canvasFilterStyle =
-    "contrast(1.14) brightness(1.02) saturate(1.22) url(#unsharp-mask)";
+    "contrast(1.15) brightness(1.02) saturate(1.25)";
 
   return (
     <section
       ref={trackRef}
       aria-label="3D Aerial Campus Tour"
       className="relative w-full bg-black select-none text-white"
-      style={{ height: "400vh" }}
+      style={{ height: "250vh" }}
     >
-      {/* SVG Convolution Matrix Unsharp Mask for Hardware-Accelerated Edge Sharpness */}
-      <svg className="absolute w-0 h-0 overflow-hidden" aria-hidden="true">
-        <filter id="unsharp-mask" x="-10%" y="-10%" width="120%" height="120%">
-          <feConvolveMatrix
-            order="3"
-            preserveAlpha="true"
-            kernelMatrix="0 -0.8 0  -0.8 4.2 -0.8  0 -0.8 0"
-          />
-        </filter>
-      </svg>
-
       {/* Pinned 100vh Viewport while user scrolls through 299 frames */}
-      <div className="sticky top-0 left-0 w-full h-screen overflow-hidden bg-black">
+      <div className="sticky top-0 left-0 w-full h-screen h-[100dvh] overflow-hidden bg-black">
         {/* Instant fallback placeholder while frame 1 is decoded */}
         {!canvasReady && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -438,10 +470,10 @@ export default function ScrollVideoCanvas() {
         <div className="absolute inset-0 video-film-grain mix-blend-overlay opacity-65 pointer-events-none" />
 
         {/* Layer 2: Deep Radial Vignette (Masks peripheral blurring & focuses central lens) */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.45)_75%,rgba(0,0,0,0.88)_100%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.35)_75%,rgba(0,0,0,0.75)_100%)] pointer-events-none" />
 
-        {/* Layer 3: Vertical Cinematic Soft Grading (Top & Bottom subtle contrast gradient) */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
+        {/* Layer 3: Vertical Cinematic Soft Grading */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/50 pointer-events-none" />
 
         {/* =============================================================== */}
         {/* CLEAN MINIMALIST SCROLL DOWN BUTTON                             */}
